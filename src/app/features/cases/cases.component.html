@@ -1,0 +1,66 @@
+<section class="page-head">
+  <div>
+    <h1>Cases</h1>
+    <p class="lede">All prior authorization requests, newest activity first.</p>
+  </div>
+  <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a>
+</section>
+
+@if (state() === 'error') {
+  <app-alert tone="danger" heading="Could not load cases">
+    {{ error() }}
+    <div class="alert-actions"><button type="button" class="btn btn-secondary btn-sm" (click)="load()">Try again</button></div>
+  </app-alert>
+}
+
+<section class="card flush">
+  <div class="toolbar">
+    <div class="search">
+      <app-icon name="search" [size]="18" />
+      <input
+        type="search"
+        placeholder="Search by case, patient or service"
+        aria-label="Search cases"
+        [value]="query()"
+        (input)="onSearch($event)"
+      />
+    </div>
+    @if (statusOptions().length > 1) {
+      <div class="filter-chips" role="group" aria-label="Filter by status">
+        <button type="button" class="filter-chip" [class.active]="status() === 'all'" (click)="status.set('all')">
+          All <span class="count">{{ cases().length }}</span>
+        </button>
+        @for (o of statusOptions(); track o.value) {
+          <button type="button" class="filter-chip" [class.active]="status() === o.value" (click)="status.set(o.value)">
+            {{ o.label }} <span class="count">{{ o.count }}</span>
+          </button>
+        }
+      </div>
+    }
+  </div>
+
+  @if (state() === 'loading') {
+    <div class="skeleton-list" aria-busy="true">
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    </div>
+  } @else if (state() === 'ready') {
+    @if (filtered().length) {
+      <app-case-table [cases]="filtered()" />
+      <div class="table-foot">Showing {{ filtered().length }} of {{ cases().length }} cases</div>
+    } @else if (cases().length) {
+      <div class="empty">
+        <app-icon name="search" [size]="32" />
+        <h3>No cases match your filters</h3>
+        <p>Try a different search or status.</p>
+        <button type="button" class="btn btn-secondary" (click)="clear()">Clear filters</button>
+      </div>
+    } @else {
+      <div class="empty">
+        <app-icon name="inbox" [size]="32" />
+        <h3>No cases yet</h3>
+        <p>Create your first prior authorization request to see it here.</p>
+        <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a>
+      </div>
+    }
+  }
+</section>

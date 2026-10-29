@@ -1,0 +1,103 @@
+<section class="page-head">
+  <div>
+    <h1>Welcome to Prior Authorization Assistant</h1>
+    <p class="lede">
+      Check whether a service needs prior authorization, see how the patient's record measures up against the payer's
+      criteria, and review the AI-drafted packet.
+    </p>
+  </div>
+  <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a>
+</section>
+
+@if (state() === 'error') {
+  <app-alert tone="danger" heading="Could not load cases">
+    {{ error() }}
+    <div class="alert-actions"><button type="button" class="btn btn-secondary btn-sm" (click)="load()">Try again</button></div>
+  </app-alert>
+}
+
+<section class="kpis" aria-label="Case summary">
+  <div class="kpi">
+    <div class="kpi-icon tone-info"><app-icon name="folder" [size]="22" /></div>
+    <div>
+      <div class="kpi-value">{{ state() === 'loading' ? '–' : stats().total }}</div>
+      <div class="kpi-label">Total cases</div>
+    </div>
+  </div>
+  <a class="kpi kpi-link" routerLink="/cases" [queryParams]="{ status: 'DRAFT_REQUIRES_REVIEW' }">
+    <div class="kpi-icon tone-warning"><app-icon name="clock" [size]="22" /></div>
+    <div>
+      <div class="kpi-value">{{ state() === 'loading' ? '–' : stats().awaiting }}</div>
+      <div class="kpi-label">Awaiting review</div>
+    </div>
+  </a>
+  <div class="kpi">
+    <div class="kpi-icon tone-warning"><app-icon name="help-circle" [size]="22" /></div>
+    <div>
+      <div class="kpi-value">{{ state() === 'loading' ? '–' : stats().needsInfo }}</div>
+      <div class="kpi-label">Needs information</div>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-icon tone-success"><app-icon name="check-circle" [size]="22" /></div>
+    <div>
+      <div class="kpi-value">{{ state() === 'loading' ? '–' : stats().reviewed }}</div>
+      <div class="kpi-label">Reviewed</div>
+    </div>
+  </div>
+</section>
+
+@if (state() === 'ready' && stats().failed > 0) {
+  <app-alert tone="warning" heading="{{ stats().failed }} analysis {{ stats().failed === 1 ? 'run' : 'runs' }} failed">
+    Open the case to see details and re-run the analysis.
+    <a routerLink="/cases" [queryParams]="{ status: 'FAILED' }">Show failed cases</a>
+  </app-alert>
+}
+
+<section class="card steps" aria-label="How it works">
+  <div class="step">
+    <div class="step-icon"><app-icon name="file-plus" [size]="22" /></div>
+    <div>
+      <div class="step-title">1. Enter request</div>
+      <p>Patient, payer, plan, service code and order date.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-icon"><app-icon name="sparkles" [size]="22" /></div>
+    <div>
+      <div class="step-title">2. AI analysis</div>
+      <p>Each policy criterion is checked against the patient record, with evidence for every finding.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-icon"><app-icon name="clipboard" [size]="22" /></div>
+    <div>
+      <div class="step-title">3. Review &amp; track</div>
+      <p>A reviewer accepts or corrects the findings and the draft packet. Every step is audited.</p>
+    </div>
+  </div>
+</section>
+
+<section class="card flush">
+  <div class="card-head">
+    <h2>Recent cases</h2>
+    <a routerLink="/cases" class="link-strong">View all</a>
+  </div>
+
+  @if (state() === 'loading') {
+    <div class="skeleton-list" aria-busy="true">
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    </div>
+  } @else if (state() === 'ready') {
+    @if (recent().length) {
+      <app-case-table [cases]="recent()" />
+    } @else {
+      <div class="empty">
+        <app-icon name="inbox" [size]="32" />
+        <h3>No cases yet</h3>
+        <p>Create your first prior authorization request to see it here.</p>
+        <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a>
+      </div>
+    }
+  }
+</section>

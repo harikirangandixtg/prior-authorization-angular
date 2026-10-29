@@ -1,0 +1,128 @@
+<section class="page-head">
+  <div>
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a routerLink="/">Dashboard</a><app-icon name="chevron-right" [size]="14" /><span>New request</span>
+    </nav>
+    <h1>New prior authorization request</h1>
+    <p class="lede">Enter the order details. The case is created and analyzed against the payer policy in one step.</p>
+  </div>
+</section>
+
+<div class="two-col">
+  <form class="card form-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    @if (formError()) {
+      <app-alert tone="danger" heading="The request could not be submitted">{{ formError() }}</app-alert>
+    }
+
+    <div class="form-section">
+      <div class="section-head">
+        <h2>Patient &amp; coverage</h2>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="fillSample()">Use sample data</button>
+      </div>
+      <div class="grid-3">
+        <div class="field">
+          <label for="patient_id">Patient ID <span class="req" aria-hidden="true">*</span></label>
+          <input id="patient_id" formControlName="patient_id" placeholder="e.g. P-1002" autocomplete="off" [attr.aria-invalid]="err('patient_id') ? 'true' : null" />
+          @if (err('patient_id'); as e) { <div class="field-error">{{ e }}</div> }
+        </div>
+        <div class="field">
+          <label for="payer_id">Payer ID <span class="req" aria-hidden="true">*</span></label>
+          <input id="payer_id" formControlName="payer_id" list="payers" autocomplete="off" [attr.aria-invalid]="err('payer_id') ? 'true' : null" />
+          <datalist id="payers"><option value="NORTHWIND"></option></datalist>
+          @if (err('payer_id'); as e) { <div class="field-error">{{ e }}</div> }
+        </div>
+        <div class="field">
+          <label for="plan_id">Plan ID <span class="req" aria-hidden="true">*</span></label>
+          <input id="plan_id" formControlName="plan_id" list="plans" autocomplete="off" [attr.aria-invalid]="err('plan_id') ? 'true' : null" />
+          <datalist id="plans"><option value="NW-PPO-GOLD"></option></datalist>
+          @if (err('plan_id'); as e) { <div class="field-error">{{ e }}</div> }
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-head"><h2>Service</h2></div>
+      <div class="grid-3">
+        <div class="field">
+          <label for="service_code">Service code <span class="req" aria-hidden="true">*</span></label>
+          <input id="service_code" formControlName="service_code" list="services" autocomplete="off" [attr.aria-invalid]="err('service_code') ? 'true' : null" />
+          <datalist id="services"><option value="MRI-LSPINE-001">MRI lumbar spine without contrast</option></datalist>
+          @if (err('service_code'); as e) { <div class="field-error">{{ e }}</div> }
+        </div>
+        <div class="field span-2">
+          <label for="service_description">Service description</label>
+          <input id="service_description" formControlName="service_description" placeholder="e.g. MRI lumbar spine without contrast" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="order_date">Order date <span class="req" aria-hidden="true">*</span></label>
+          <input id="order_date" type="date" formControlName="order_date" [attr.aria-invalid]="err('order_date') ? 'true' : null" />
+          @if (err('order_date'); as e) { <div class="field-error">{{ e }}</div> }
+          @else { <div class="field-hint">Time windows in the policy are measured from this date.</div> }
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-head"><h2>Clinical context <span class="optional">Optional</span></h2></div>
+      <div class="grid-3">
+        <div class="field">
+          <label for="diagnosis_code">Diagnosis code</label>
+          <input id="diagnosis_code" formControlName="diagnosis_code" placeholder="e.g. M54.16" autocomplete="off" />
+        </div>
+        <div class="field span-2">
+          <label for="diagnosis_text">Diagnosis</label>
+          <input id="diagnosis_text" formControlName="diagnosis_text" placeholder="e.g. Radiculopathy, lumbar region" autocomplete="off" />
+        </div>
+        <div class="field span-2">
+          <label for="ordering_provider">Ordering provider</label>
+          <input id="ordering_provider" formControlName="ordering_provider" placeholder="e.g. Dr. Demo Clinician" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="encounter_id">Encounter ID</label>
+          <input id="encounter_id" formControlName="encounter_id" autocomplete="off" />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" (click)="reset()">Clear</button>
+      <button type="submit" class="btn btn-primary btn-lg" [disabled]="phase() !== 'idle'">
+        <app-icon name="sparkles" [size]="18" /> Check prior authorization
+      </button>
+    </div>
+  </form>
+
+  <aside class="stack">
+    <section class="card side-card">
+      <h2>What happens next</h2>
+      <ol class="numbered">
+        <li>A case is created from your request.</li>
+        <li>The patient record is checked against each criterion of the payer policy.</li>
+        <li>You get the findings, the evidence behind them, a draft packet and what is still missing.</li>
+      </ol>
+    </section>
+    <app-alert tone="info" heading="Analysis takes a moment">
+      The AI model is called during analysis, so it can take up to a minute. Keep this page open.
+    </app-alert>
+  </aside>
+</div>
+
+@if (phase() !== 'idle') {
+  <div class="overlay" role="alertdialog" aria-modal="true" aria-labelledby="busy-title">
+    <div class="overlay-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <h2 id="busy-title">{{ phase() === 'creating' ? 'Creating case…' : 'Analyzing request…' }}</h2>
+      <ol class="progress">
+        <li [class]="phase() === 'creating' ? 'active' : 'done'">
+          <span class="progress-dot"><app-icon name="check" [size]="12" /></span>
+          Create case @if (createdId()) { <span class="mono muted">{{ createdId() }}</span> }
+        </li>
+        <li [class]="phase() === 'analyzing' ? 'active' : 'todo'">
+          <span class="progress-dot"></span>
+          Check the record against policy criteria
+        </li>
+      </ol>
+      <p class="muted small">{{ elapsed() }}s elapsed · usually under a minute</p>
+    </div>
+  </div>
+}

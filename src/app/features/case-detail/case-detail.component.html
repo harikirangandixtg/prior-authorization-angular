@@ -1,0 +1,472 @@
+@switch (loadState()) {
+  @case ('loading') {
+    <div class="skeleton-page" aria-busy="true">
+      <div class="skeleton w-40"></div>
+      <div class="skeleton h-lg"></div>
+      <div class="skeleton h-lg"></div>
+    </div>
+  }
+  @case ('notfound') {
+    <div class="card empty">
+      <app-icon name="search" [size]="32" />
+      <h3>Case not found</h3>
+      <p>No case with ID <span class="mono">{{ caseId }}</span> exists.</p>
+      <a class="btn btn-primary" routerLink="/cases">Back to cases</a>
+    </div>
+  }
+  @case ('error') {
+    <app-alert tone="danger" heading="Could not load this case">
+      {{ loadError() }}
+      <div class="alert-actions"><button type="button" class="btn btn-secondary btn-sm" (click)="loadCase()">Try again</button></div>
+    </app-alert>
+  }
+  @case ('ready') {
+    @if (detail(); as c) {
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/cases">Cases</a><app-icon name="chevron-right" [size]="14" /><span class="mono">{{ c.case_id }}</span>
+      </nav>
+
+      <section class="page-head">
+        <div>
+          <h1 class="title-row"><span class="mono">{{ c.case_id }}</span> <app-chip [p]="caseStatus(c.status)" /></h1>
+          <p class="lede">
+            Created by {{ c.created_by }} · {{ c.created_at | date: 'd MMM y, HH:mm' }} · Updated {{ timeAgo(c.updated_at) }}
+          </p>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" (click)="rerun()" [disabled]="rerunning()">
+            <app-icon name="refresh" [size]="18" />
+            {{ rerunning() ? 'Analyzing…' : c.analyzed && c.criteria.length ? 'Re-run analysis' : 'Run analysis' }}
+          </button>
+        </div>
+      </section>
+
+      @if (rerunning()) {
+        <app-alert tone="info" heading="Analysis in progress">
+          Checking the record against the policy criteria. This can take up to a minute.
+        </app-alert>
+      }
+      @if (demoNote(); as note) {
+        <app-alert tone="warning" heading="Demo mode">{{ note }}</app-alert>
+      }
+      @if (c.status === 'FAILED') {
+        <app-alert tone="danger" heading="The last analysis failed">
+          No results were produced. Re-run the analysis; if it keeps failing, check the API logs.
+        </app-alert>
+      }
+
+      <div class="summary-grid">
+        <section class="card decision-card" aria-label="Criteria result">
+          <div [class]="'decision-icon tone-' + overall().tone"><app-icon [name]="overall().icon" [size]="30" /></div>
+          <div>
+            <div class="eyebrow">Criteria result</div>
+            <div [class]="'decision-value tone-' + overall().tone">{{ overall().label }}</div>
+            <p class="decision-text">{{ summaryText() }}</p>
+            @if (tally().length) {
+              <div class="tally">
+                @for (t of tally(); track t.status) {
+                  <span [class]="'chip tone-' + criterionStatus(t.status).tone">{{ t.count }} {{ criterionStatus(t.status).label }}</span>
+                }
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="card" aria-label="Request details">
+          <h2 class="card-title">Request</h2>
+          <dl class="dl">
+            <dt>Patient</dt><dd>{{ c.patient_id }}</dd>
+            <dt>Payer · Plan</dt><dd>{{ c.request.payer_id }} · {{ c.request.plan_id }}</dd>
+            <dt>Service</dt>
+            <dd>{{ val(c.request.service_description) }} <span class="mono muted">{{ c.request.service_code }}</span></dd>
+            <dt>Diagnosis</dt>
+            <dd>
+              @if (c.request.diagnosis_code || c.request.diagnosis_text) {
+                <span class="mono">{{ c.request.diagnosis_code }}</span> {{ c.request.diagnosis_text }}
+              } @else { — }
+            </dd>
+            <dt>Ordering provider</dt><dd>{{ val(c.request.ordering_provider) }}</dd>
+            <dt>Order date</dt><dd>{{ c.request.order_date | date: 'd MMM y' }}</dd>
+            @if (c.request.encounter_id) {
+              <dt>Encounter</dt><dd class="mono">{{ c.request.encounter_id }}</dd>
+            }
+            @if (c.policy_id) {
+              <dt>Policy</dt><dd class="mono">{{ c.policy_id }}</dd>
+            }
+          </dl>
+        </section>
+      </div>
+
+      <div class="detail-layout">
+        <div class="detail-main">
+          <div class="tabs" role="tablist" aria-label="Case sections">
+            @for (t of tabs; track t.id) {
+              <button
+                type="button"
+                role="tab"
+                class="tab"
+                [class.active]="tab() === t.id"
+                [attr.aria-selected]="tab() === t.id"
+                (click)="selectTab(t.id)"
+              >
+                <app-icon [name]="t.icon" [size]="17" /> {{ t.label }}
+              </button>
+            }
+          </div>
+
+          <!-- ============================= CRITERIA ============================= -->
+          @if (tab() === 'criteria') {
+            @if (!c.criteria.length) {
+              <div class="card empty">
+                <app-icon name="clock" [size]="32" />
+                <h3>{{ c.status === 'FAILED' ? 'The analysis did not produce results' : 'This case has not been analyzed yet' }}</h3>
+                <p>Run the analysis to check the record against the policy criteria.</p>
+                <button type="button" class="btn btn-primary" (click)="rerun()" [disabled]="rerunning()">
+                  <app-icon name="sparkles" [size]="18" /> Run analysis
+                </button>
+              </div>
+            } @else {
+              <section class="card flush">
+                <div class="card-head">
+                  <h2>Policy criteria</h2>
+                  <span class="muted small">{{ c.criteria.length }} criteria</span>
+                </div>
+                @for (k of c.criteria; track k.criterion_id) {
+                  <article class="criterion" [class.attention]="k.status !== 'Met'">
+                    <div class="criterion-id">{{ k.criterion_id }}</div>
+                    <div class="criterion-main">
+                      <div class="criterion-top">
+                        <h3>{{ k.text }}</h3>
+                        <app-chip [p]="criterionStatus(k.status)" />
+                      </div>
+                      @if (k.rationale) { <p class="rationale">{{ k.rationale }}</p> }
+                      @if (k.evidence_refs.length) {
+                        <div class="refs">
+                          @for (r of k.evidence_refs; track r) { <app-ref [reference]="r" /> }
+                        </div>
+                      }
+                      @if (k.missing_information) {
+                        <div class="callout tone-warning">
+                          <app-icon name="alert-triangle" [size]="16" />
+                          <span><strong>Missing:</strong> {{ k.missing_information }}</span>
+                        </div>
+                      }
+                      @if (disagrees(k)) {
+                        <div class="callout tone-info">
+                          <app-icon name="info" [size]="16" />
+                          <span>
+                            The AI model said <strong>{{ criterionStatus(k.model_status).label }}</strong>, the rules check said
+                            <strong>{{ criterionStatus(k.reference_status).label }}</strong>.
+                          </span>
+                        </div>
+                      }
+                    </div>
+                  </article>
+                }
+              </section>
+
+              @if (c.open_items.length) {
+                <section class="card">
+                  <h2 class="card-title">Open items</h2>
+                  <ul class="check-list warn">
+                    @for (i of c.open_items; track $index) {
+                      <li><app-icon name="alert-triangle" [size]="16" /><span>{{ i }}</span></li>
+                    }
+                  </ul>
+                </section>
+              }
+
+              @if (c.notes.length) {
+                <section class="card">
+                  <h2 class="card-title">System notes</h2>
+                  <ul class="check-list">
+                    @for (n of c.notes; track $index) {
+                      <li><app-icon name="info" [size]="16" /><span>{{ n }}</span></li>
+                    }
+                  </ul>
+                </section>
+              }
+            }
+          }
+
+          <!-- ============================= EVIDENCE ============================= -->
+          @if (tab() === 'evidence') {
+            @switch (evidence().state) {
+              @case ('ready') {
+                <section class="card flush">
+                  <div class="card-head">
+                    <h2>Evidence retrieved</h2>
+                    <span class="muted small">{{ evidence().data?.evidence?.length ?? 0 }} items from the patient record</span>
+                  </div>
+                  @if (evidenceKinds().length > 1) {
+                    <div class="filter-chips pad" role="group" aria-label="Filter by type">
+                      <button type="button" class="filter-chip" [class.active]="kindFilter() === 'all'" (click)="kindFilter.set('all')">All</button>
+                      @for (k of evidenceKinds(); track k.kind) {
+                        <button type="button" class="filter-chip" [class.active]="kindFilter() === k.kind" (click)="kindFilter.set(k.kind)">
+                          {{ k.label }} <span class="count">{{ k.count }}</span>
+                        </button>
+                      }
+                    </div>
+                  }
+                  <div class="table-wrap">
+                    <table class="table">
+                      <thead>
+                        <tr><th>Type</th><th>Summary</th><th>Period</th><th>Status</th><th>Reference</th><th>Used for</th></tr>
+                      </thead>
+                      <tbody>
+                        @for (e of evidenceRows(); track e.reference) {
+                          <tr>
+                            <td>
+                              <span class="kind"><app-icon [name]="evidenceKind(e.kind).icon" [size]="16" /> {{ evidenceKind(e.kind).label }}</span>
+                            </td>
+                            <td class="strong">{{ e.summary }}</td>
+                            <td class="nowrap">
+                              @if (e.start) {
+                                {{ e.start | date: 'd MMM y' }}
+                                @if (e.end) { → {{ e.end | date: 'd MMM y' }} }
+                              } @else { — }
+                              @if (badRange(e)) {
+                                <span class="inline-flag" title="End date is before start date"><app-icon name="alert-triangle" [size]="14" /> Check dates</span>
+                              }
+                            </td>
+                            <td>@if (e.status) { <span class="chip tone-neutral">{{ e.status }}</span> } @else { — }</td>
+                            <td><app-ref [reference]="e.reference" /></td>
+                            <td>
+                              @for (cid of e.cited_by_criteria; track cid) { <span class="chip tone-info">{{ cid }}</span> }
+                              @empty { <span class="muted small">Not cited</span> }
+                            </td>
+                          </tr>
+                        } @empty {
+                          <tr><td colspan="6" class="muted center">Nothing of this type.</td></tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              }
+              @case ('missing') {
+                <div class="card empty">
+                  <app-icon name="layers" [size]="32" />
+                  <h3>No evidence yet</h3>
+                  <p>{{ evidence().error || 'Evidence is collected when the case is analyzed.' }}</p>
+                </div>
+              }
+              @case ('error') {
+                <app-alert tone="danger" heading="Could not load evidence">
+                  {{ evidence().error }}
+                  <div class="alert-actions"><button type="button" class="btn btn-secondary btn-sm" (click)="retry(evidence)">Try again</button></div>
+                </app-alert>
+              }
+              @default {
+                <div class="card"><div class="skeleton-list" aria-busy="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div>
+              }
+            }
+          }
+
+          <!-- ============================= DRAFT ============================= -->
+          @if (tab() === 'draft') {
+            @switch (draft().state) {
+              @case ('ready') {
+                @if (draft().data; as d) {
+                  <section class="card flush">
+                    <div class="card-head">
+                      <div>
+                        <h2>Draft packet</h2>
+                        <p class="muted small">
+                          Version {{ d.version }} · {{ d.created_by }} · {{ d.created_at | date: 'd MMM y, HH:mm' }}
+                        </p>
+                      </div>
+                      <div class="actions">
+                        <app-chip [p]="submissionStatus(d.submission.status)" />
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="copy(d.narrative)">
+                          <app-icon name="copy" [size]="16" /> Copy text
+                        </button>
+                      </div>
+                    </div>
+                    <div class="document"><app-cited-text [text]="d.narrative" /></div>
+                  </section>
+
+                  @if (d.packet.draft.missingDocumentation.length) {
+                    <section class="card">
+                      <h2 class="card-title">Missing documentation</h2>
+                      <ul class="check-list warn">
+                        @for (m of d.packet.draft.missingDocumentation; track $index) {
+                          <li><app-icon name="alert-triangle" [size]="16" /><span>{{ m }}</span></li>
+                        }
+                      </ul>
+                    </section>
+                  }
+
+                  @if (d.packet.draft.sourceReferences.length) {
+                    <section class="card flush">
+                      <div class="card-head"><h2>Source references</h2><span class="muted small">Cited in the narrative</span></div>
+                      <div class="table-wrap">
+                        <table class="table compact">
+                          <thead><tr><th>ID</th><th>Type</th><th>Summary</th><th>Date</th><th>Reference</th></tr></thead>
+                          <tbody>
+                            @for (s of d.packet.draft.sourceReferences; track s.evidenceId) {
+                              <tr>
+                                <td class="mono">{{ s.evidenceId }}</td>
+                                <td><span class="kind"><app-icon [name]="evidenceKind(s.kind).icon" [size]="15" /> {{ evidenceKind(s.kind).label }}</span></td>
+                                <td>{{ s.summary }}</td>
+                                <td class="nowrap">
+                                  {{ s.date | date: 'd MMM y' }}@if (s.endDate) { → {{ s.endDate | date: 'd MMM y' }} }
+                                </td>
+                                <td><app-ref [reference]="s.reference" /></td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  }
+                }
+              }
+              @case ('missing') {
+                <div class="card empty">
+                  <app-icon name="file-text" [size]="32" />
+                  <h3>No draft yet</h3>
+                  <p>{{ draft().error || 'A draft packet is generated when the case is analyzed.' }}</p>
+                  <button type="button" class="btn btn-primary" (click)="rerun()" [disabled]="rerunning()">
+                    <app-icon name="sparkles" [size]="18" /> Run analysis
+                  </button>
+                </div>
+              }
+              @case ('error') {
+                <app-alert tone="danger" heading="Could not load the draft">
+                  {{ draft().error }}
+                  <div class="alert-actions"><button type="button" class="btn btn-secondary btn-sm" (click)="retry(draft)">Try again</button></div>
+                </app-alert>
+              }
+              @default {
+                <div class="card"><div class="skeleton-list" aria-busy="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div>
+              }
+            }
+          }
+
+          <!-- ============================= AUDIT ============================= -->
+          @if (tab() === 'audit') {
+            @switch (audit().state) {
+              @case ('ready') {
+                <section class="card">
+                  <div class="card-head tight">
+                    <h2>Audit trail</h2>
+                    <span class="muted small">{{ auditRows().length }} events, newest first</span>
+                  </div>
+                  @if (auditRows().length) {
+                    <ol class="timeline">
+                      @for (ev of auditRows(); track ev.event_id) {
+                        <li>
+                          <span [class]="'tl-icon tone-' + auditAction(ev.action).tone"><app-icon [name]="auditAction(ev.action).icon" [size]="16" /></span>
+                          <div class="tl-body">
+                            <div class="tl-title">{{ auditAction(ev.action).label }}</div>
+                            <div class="tl-meta">
+                              {{ ev.actor }} · {{ ev.ts | date: 'd MMM y, HH:mm:ss' }}
+                              <span class="mono muted" title="Correlation ID">· {{ ev.correlation_id }}</span>
+                            </div>
+                            @if (details(ev).length) {
+                              <div class="tl-detail">
+                                @for (d of details(ev); track d.key) {
+                                  <span class="kv"><span class="kv-k">{{ d.key }}</span> {{ d.value }}</span>
+                                }
+                              </div>
+                            }
+                          </div>
+                        </li>
+                      }
+                    </ol>
+                  } @else {
+                    <p class="muted">No events recorded.</p>
+                  }
+                </section>
+              }
+              @case ('error') {
+                <app-alert tone="danger" heading="Could not load the audit trail">
+                  {{ audit().error }}
+                  <div class="alert-actions"><button type="button" class="btn btn-secondary btn-sm" (click)="retry(audit)">Try again</button></div>
+                </app-alert>
+              }
+              @case ('missing') {
+                <div class="card empty"><app-icon name="activity" [size]="32" /><h3>No audit trail</h3><p>{{ audit().error }}</p></div>
+              }
+              @default {
+                <div class="card"><div class="skeleton-list" aria-busy="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div>
+              }
+            }
+          }
+        </div>
+
+        <!-- ============================= RAIL ============================= -->
+        <aside class="detail-rail">
+          <section class="card">
+            <h2 class="card-title">Status</h2>
+            <dl class="dl tight">
+              <dt>Verification</dt><dd><app-chip [p]="verifierChip(c)" /></dd>
+              <dt>Human review</dt><dd><app-chip [p]="reviewStatus(c.human_review.review_status)" /></dd>
+              <dt>Submission</dt><dd><app-chip [p]="submissionStatus(c.submission.status)" /></dd>
+            </dl>
+            @if (c.verifier && c.verifier.problems.length) {
+              <ul class="check-list warn small-list">
+                @for (p of c.verifier.problems; track $index) {
+                  <li><app-icon name="alert-triangle" [size]="15" /><span>{{ p }}</span></li>
+                }
+              </ul>
+            }
+            @if (c.human_review.reviewer_id) {
+              <p class="muted small review-by">
+                Reviewed by {{ c.human_review.reviewer_id }}
+                @if (c.human_review.reviewed_at) { · {{ c.human_review.reviewed_at | date: 'd MMM y, HH:mm' }} }
+              </p>
+            }
+          </section>
+
+          <section class="card" id="review">
+            <h2 class="card-title">{{ c.human_review.reviewer_id ? 'Update review' : 'Review this case' }}</h2>
+            @if (!canReview()) {
+              <p class="muted">There is nothing to review yet. Run the analysis first.</p>
+            } @else {
+              <div class="segmented" role="radiogroup" aria-label="Review decision">
+                <button type="button" role="radio" [attr.aria-checked]="decision === 'ACCEPTED'" [class.active]="decision === 'ACCEPTED'" (click)="decision = 'ACCEPTED'">
+                  <app-icon name="check-circle" [size]="16" /> Accept
+                </button>
+                <button type="button" role="radio" [attr.aria-checked]="decision === 'CORRECTED'" [class.active]="decision === 'CORRECTED'" (click)="decision = 'CORRECTED'">
+                  <app-icon name="clipboard" [size]="16" /> Correct
+                </button>
+              </div>
+
+              @if (decision === 'CORRECTED') {
+                <div class="corrections">
+                  @for (r of corrections; track r.criterion_id) {
+                    <div class="correction" [class.changed]="r.status !== r.origStatus || r.rationale !== r.origRationale">
+                      <div class="correction-top">
+                        <strong>{{ r.criterion_id }}</strong>
+                        <select [attr.aria-label]="'Status for ' + r.criterion_id" [(ngModel)]="r.status">
+                          @for (o of statusOptions; track o) { <option [value]="o">{{ criterionStatus(o).label }}</option> }
+                          @if (!statusOptions.includes(r.origStatus)) { <option [value]="r.origStatus">{{ criterionStatus(r.origStatus).label }}</option> }
+                        </select>
+                      </div>
+                      <textarea rows="2" [attr.aria-label]="'Rationale for ' + r.criterion_id" placeholder="Rationale" [(ngModel)]="r.rationale"></textarea>
+                    </div>
+                  }
+                </div>
+              }
+
+              <div class="field">
+                <label for="review-comment">Comment <span class="optional">Optional</span></label>
+                <textarea id="review-comment" rows="3" [(ngModel)]="comment" placeholder="Anything the next person should know"></textarea>
+              </div>
+
+              @if (reviewError()) {
+                <app-alert tone="danger" heading="Review not saved">{{ reviewError() }}</app-alert>
+              }
+
+              <button type="button" class="btn btn-primary btn-block" (click)="submitReview()" [disabled]="reviewBusy()">
+                {{ reviewBusy() ? 'Saving…' : decision === 'ACCEPTED' ? 'Accept findings' : 'Save correction' }}
+              </button>
+            }
+          </section>
+        </aside>
+      </div>
+    }
+  }
+}

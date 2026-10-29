@@ -1,0 +1,81 @@
+<section class="page-head">
+  <div>
+    <h1>Policy search</h1>
+    <p class="lede">Look up whether a service needs prior authorization and which payer policy and criteria apply.</p>
+  </div>
+</section>
+
+<form class="card policy-filters" [formGroup]="form" (ngSubmit)="search()">
+  <div class="field">
+    <label for="f-payer">Payer ID</label>
+    <input id="f-payer" type="text" formControlName="payer_id" placeholder="e.g. NORTHWIND" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label for="f-plan">Plan ID</label>
+    <input id="f-plan" type="text" formControlName="plan_id" placeholder="e.g. NW-PPO-GOLD" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label for="f-service">Service code</label>
+    <input id="f-service" type="text" formControlName="service_code" placeholder="e.g. MRI-LSPINE-001" autocomplete="off" />
+  </div>
+  <div class="policy-actions">
+    <button type="submit" class="btn btn-primary" [disabled]="state() === 'loading'">
+      <app-icon name="search" [size]="18" /> Search
+    </button>
+    <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+  </div>
+</form>
+
+@switch (state()) {
+  @case ('loading') {
+    <div class="card"><div class="skeleton-list" aria-busy="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div>
+  }
+  @case ('error') {
+    <app-alert tone="danger" heading="Policy search failed">
+      {{ error() }}
+      <div class="alert-actions"><button type="button" class="btn btn-secondary btn-sm" (click)="search()">Try again</button></div>
+    </app-alert>
+  }
+  @case ('ready') {
+    @if (!items().length) {
+      <div class="card empty">
+        <app-icon name="search" [size]="32" />
+        <h3>No matching policy rules</h3>
+        <p>{{ result()?.message || 'Try fewer filters or a different payer, plan or service code.' }}</p>
+      </div>
+    } @else {
+      <p class="muted small">{{ result()?.count ?? items().length }} {{ items().length === 1 ? 'result' : 'results' }}</p>
+      <div class="policy-list">
+        @for (i of items(); track i.rule_reference) {
+          <article class="card policy-card">
+            <header class="policy-top">
+              <div>
+                <div class="policy-service">{{ i.service_code }}</div>
+                <div class="muted small">{{ i.payer_id }} · {{ i.plan_id }}</div>
+              </div>
+              <app-chip [p]="paRequired(i.pa_required)" />
+            </header>
+
+            @if (i.policy_summary; as p) {
+              <div class="policy-body">
+                <h3>{{ p.title }}</h3>
+                <p class="muted small">
+                  <span class="mono">{{ p.policy_id }}</span> · {{ p.payer }} · Effective {{ p.effective | date: 'd MMM y' }}
+                  @if (p.effective_to) { to {{ p.effective_to | date: 'd MMM y' }} } @else { · No end date }
+                </p>
+                <div class="policy-criteria">
+                  <span class="eyebrow">{{ p.criteria_count }} criteria</span>
+                  @for (c of p.criteria_ids; track c) { <span class="chip tone-info">{{ c }}</span> }
+                </div>
+              </div>
+            } @else if (i.policy_id) {
+              <p class="muted small">Policy <span class="mono">{{ i.policy_id }}</span></p>
+            } @else {
+              <p class="muted small">No medical-necessity policy applies to this service.</p>
+            }            
+          </article>
+        }
+      </div>
+    }
+  }
+}
