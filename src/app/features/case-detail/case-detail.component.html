@@ -420,6 +420,7 @@
             }
           </section>
 
+          @if (auth.can('reviewer')) {
           <section class="card" id="review">
             <h2 class="card-title">{{ c.human_review.reviewer_id ? 'Update review' : 'Review this case' }}</h2>
             @if (!canReview()) {
@@ -465,6 +466,9 @@
               </button>
             }
           </section>
+          } @else {
+            <section class="card"><h2 class="card-title">Review</h2><p class="muted">Only users with the reviewer role can accept or correct findings.</p></section>
+          }
         </aside>
       </div>
     }

@@ -122,6 +122,9 @@ export function todayIso(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+export const byUpdatedDesc = (a: { updated_at: string }, b: { updated_at: string }): number =>
+  Date.parse(b.updated_at) - Date.parse(a.updated_at);
+
 export function paRequired(v: string | null | undefined): Presentation {
   switch ((v ?? '').toLowerCase()) {
     case 'yes': return make('PA required', 'warning', 'shield-check');
@@ -129,6 +132,3 @@ export function paRequired(v: string | null | undefined): Presentation {
     default: return fallback(v);
   }
 }
-
-export const byUpdatedDesc = (a: { updated_at: string }, b: { updated_at: string }): number =>
-  Date.parse(b.updated_at) - Date.parse(a.updated_at);

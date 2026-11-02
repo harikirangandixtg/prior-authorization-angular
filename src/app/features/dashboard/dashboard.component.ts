@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthorizationApi } from '../../core/api.service';
+import { AuthService } from '../../core/auth.service';
 import { toApiError } from '../../core/api-error';
 import { PaCase } from '../../core/models';
 import { byUpdatedDesc } from '../../core/presentation';
@@ -15,6 +16,7 @@ import { IconComponent } from '../../shared/icon.component';
 })
 export class DashboardComponent {
   private readonly api = inject(AuthorizationApi);
+  protected readonly auth = inject(AuthService);
 
   protected readonly state = signal<'loading' | 'ready' | 'error'>('loading');
   protected readonly error = signal('');

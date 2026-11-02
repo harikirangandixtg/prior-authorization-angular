@@ -6,7 +6,7 @@
       criteria, and review the AI-drafted packet.
     </p>
   </div>
-  <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a>
+  @if (auth.can('requester')) { <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a> }
 </section>
 
 @if (state() === 'error') {
@@ -96,7 +96,7 @@
         <app-icon name="inbox" [size]="32" />
         <h3>No cases yet</h3>
         <p>Create your first prior authorization request to see it here.</p>
-        <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a>
+        @if (auth.can('requester')) { <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a> }
       </div>
     }
   }

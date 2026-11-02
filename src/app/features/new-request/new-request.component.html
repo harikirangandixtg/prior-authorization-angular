@@ -24,6 +24,7 @@
           <label for="patient_id">Patient ID <span class="req" aria-hidden="true">*</span></label>
           <input id="patient_id" formControlName="patient_id" placeholder="e.g. P-1002" autocomplete="off" [attr.aria-invalid]="err('patient_id') ? 'true' : null" />
           @if (err('patient_id'); as e) { <div class="field-error">{{ e }}</div> }
+          @if (!auth.hasAllPatients()) { <div class="field-hint">You can submit for: {{ auth.user()?.allowed_patients?.join(', ') || 'no patients' }}</div> }
         </div>
         <div class="field">
           <label for="payer_id">Payer ID <span class="req" aria-hidden="true">*</span></label>

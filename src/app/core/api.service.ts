@@ -1,15 +1,18 @@
 import { HttpClient, HttpInterceptorFn } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
+import { HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import {
   AuditResponse,
   CaseRequest,
   DraftResponse,
   EvidenceResponse,
+  BulkUploadResponse,
   PaCase,
+  PolicyFilters,
+  PolicySearchResponse,
   ReviewDecision,
-  PolicySearchResponse
 } from './models';
 
 /** Tracks whether the API is reachable, shown in the sidebar. Updated by the interceptor below. */
@@ -37,6 +40,25 @@ export const connectionInterceptor: HttpInterceptorFn = (req, next) => {
 export class AuthorizationApi {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiBaseUrl;
+
+  /** GET /policies?payer_id=&plan_id=&service_code=&query= (empty filters are not sent) */
+  searchPolicies(filters: PolicyFilters): Observable<PolicySearchResponse> {
+    let params = new HttpParams();
+    for (const [k, v] of Object.entries(filters)) if (v.trim()) params = params.set(k, v.trim());
+    return this.http.get<PolicySearchResponse>(`${this.base}/policies`, { params });
+  }
+
+  /** POST /cases/upload?analyze=true|false  (multipart, form field `file`) */
+  uploadCases(file: File, analyze: boolean): Observable<BulkUploadResponse> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<BulkUploadResponse>(`${this.base}/cases/upload?analyze=${analyze}`, form);
+  }
+
+  /** GET /cases/upload/jobs/{job_id} */
+  getUploadJob(jobId: string): Observable<BulkUploadResponse> {
+    return this.http.get<BulkUploadResponse>(`${this.base}/cases/upload/jobs/${encodeURIComponent(jobId)}`);
+  }
 
   /** GET /cases */
   listCases(): Observable<PaCase[]> {
@@ -73,20 +95,6 @@ export class AuthorizationApi {
     return this.http.get<AuditResponse>(`${this.base}/cases/${encodeURIComponent(id)}/audit`);
   }
 
-
-  /** GET /policies?payer_id=&plan_id=&service_code=&query= (blank values are left out) */
-  searchPolicies(payerId = '', planId = '', serviceCode = '', query = ''): Observable<PolicySearchResponse> {
-    const qs = [
-      ['payer_id', payerId],
-      ['plan_id', planId],
-      ['service_code', serviceCode],
-      ['query', query],
-    ]
-      .filter(([, v]) => v.trim())
-      .map(([k, v]) => `${k}=${encodeURIComponent(v.trim())}`)
-      .join('&');
-    return this.http.get<PolicySearchResponse>(`${this.base}/policies${qs ? '?' + qs : ''}`);
-  }
   /**
    * POST /cases/{id}/review
    *
@@ -110,4 +118,3 @@ function toReviewPayload(review: ReviewDecision): Record<string, unknown> {
     corrections: review.corrections, // [{ criterion_id, status, rationale }]
   };
 }
-

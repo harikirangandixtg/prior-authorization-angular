@@ -135,11 +135,79 @@ export interface ReviewDecision {
 }
 
 export interface PolicySummary {
-  policy_id: string; title: string; payer: string; effective: string;
-  effective_to: string | null; criteria_count: number; criteria_ids: string[];
+  policy_id: string;
+  title: string;
+  payer: string;
+  effective: string;
+  effective_to: string | null;
+  criteria_count: number;
+  criteria_ids: string[];
 }
+
 export interface PolicyItem {
-  rule_reference: string; payer_id: string; plan_id: string; service_code: string;
-  pa_required: string; policy_id: string | null; policy_summary?: PolicySummary | null;
+  rule_reference: string;
+  payer_id: string;
+  plan_id: string;
+  service_code: string;
+  /** 'yes' | 'no' (other values are shown as-is) */
+  pa_required: string;
+  policy_id: string | null;
+  policy_summary?: PolicySummary | null;
 }
-export interface PolicySearchResponse { status: string; count: number; items: PolicyItem[]; message: string | null; }
+
+export interface PolicySearchResponse {
+  status: string;
+  count: number;
+  items: PolicyItem[];
+  message: string | null;
+}
+
+export interface PolicyFilters {
+  payer_id: string;
+  plan_id: string;
+  service_code: string;
+  query: string;
+}
+
+/** Response of POST /cases/upload and GET /cases/upload/jobs/{id}. Shapes of created/errors are read defensively. */
+export interface BulkUploadResponse {
+  job_id?: string;
+  status?: string;
+  created?: unknown[];
+  errors?: unknown[];
+  result?: { created?: unknown[]; errors?: unknown[] };
+  [key: string]: unknown;
+}
+
+/* ---------------------------------------------------------------- auth */
+export type Role = 'requester' | 'reviewer';
+
+export interface AuthUser {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  roles: string[];
+  /** ['*'] means every patient; otherwise a list of patient IDs. */
+  allowed_patients: string[];
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: AuthUser;
+}
+
+export interface SignupRequest {
+  email: string;
+  password: string;
+  confirm_password: string;
+  full_name?: string;
+  roles: Role[];
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  new_password: string;
+  confirm_password: string;
+}

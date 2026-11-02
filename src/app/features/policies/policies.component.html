@@ -18,11 +18,15 @@
     <label for="f-service">Service code</label>
     <input id="f-service" type="text" formControlName="service_code" placeholder="e.g. MRI-LSPINE-001" autocomplete="off" />
   </div>
+  <div class="field">
+    <label for="f-query">Keyword</label>
+    <input id="f-query" type="text" formControlName="query" placeholder="e.g. C1" autocomplete="off" />
+  </div>
   <div class="policy-actions">
     <button type="submit" class="btn btn-primary" [disabled]="state() === 'loading'">
       <app-icon name="search" [size]="18" /> Search
     </button>
-    <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+    <button type="button" class="btn btn-ghost" (click)="clear()">Clear</button>
   </div>
 </form>
 
@@ -72,7 +76,16 @@
               <p class="muted small">Policy <span class="mono">{{ i.policy_id }}</span></p>
             } @else {
               <p class="muted small">No medical-necessity policy applies to this service.</p>
-            }            
+            }
+
+            <footer class="policy-foot">
+              <span class="mono muted small" title="Rule reference">{{ i.rule_reference }}</span>
+              @if (i.pa_required.toLowerCase() === 'yes' && auth.can('requester')) {
+                <a class="btn btn-secondary btn-sm" routerLink="/new" [queryParams]="requestParams(i)">
+                  <app-icon name="file-plus" [size]="16" /> Start request
+                </a>
+              }
+            </footer>
           </article>
         }
       </div>

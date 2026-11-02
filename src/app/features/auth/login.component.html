@@ -1,0 +1,40 @@
+<div class="auth-wrap">
+  <section class="card auth-card" aria-labelledby="auth-title">
+    <div class="auth-icon"><app-icon name="lock" [size]="26" /></div>
+    <h1 id="auth-title">Sign in</h1>
+    <p class="lede">Use your XT Global work account.</p>
+
+    @if (resetDone) {
+      <app-alert tone="success" heading="Password updated">If the account exists, its password was changed. Sign in with the new password.</app-alert>
+    }
+    @if (expired) {
+      <app-alert tone="info" heading="Session ended">Please sign in again to continue.</app-alert>
+    }
+    @if (error()) {
+      <app-alert tone="danger" heading="Could not sign in">{{ error() }}</app-alert>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="auth-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" formControlName="email" autocomplete="username" placeholder="name@xtglobal.com" [attr.aria-invalid]="err('email') ? 'true' : null" />
+        @if (err('email'); as e) { <div class="field-error">{{ e }}</div> }
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <app-password-input inputId="password" [control]="form.controls.password" autocomplete="current-password" [invalid]="!!err('password')" />
+        @if (err('password'); as e) { <div class="field-error">{{ e }}</div> }
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg btn-block" [disabled]="busy()">
+        {{ busy() ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+
+    <div class="auth-links">
+      <a routerLink="/reset-password">Forgot password?</a>
+      <span>New here? <a routerLink="/signup">Create an account</a></span>
+    </div>
+  </section>
+</div>

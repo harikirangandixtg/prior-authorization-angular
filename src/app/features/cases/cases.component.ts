@@ -1,25 +1,29 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthorizationApi } from '../../core/api.service';
+import { AuthService } from '../../core/auth.service';
 import { toApiError } from '../../core/api-error';
 import { PaCase } from '../../core/models';
 import { byUpdatedDesc, caseStatus } from '../../core/presentation';
 import { AlertComponent } from '../../shared/alert.component';
+import { BulkUploadComponent } from './bulk-upload.component';
 import { CaseTableComponent } from '../../shared/case-table.component';
 import { IconComponent } from '../../shared/icon.component';
 
 @Component({
   selector: 'app-cases',
-  imports: [RouterLink, AlertComponent, CaseTableComponent, IconComponent],
+  imports: [RouterLink, AlertComponent, BulkUploadComponent, CaseTableComponent, IconComponent],
   templateUrl: './cases.component.html',
 })
 export class CasesComponent {
   private readonly api = inject(AuthorizationApi);
+  protected readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
 
   protected readonly state = signal<'loading' | 'ready' | 'error'>('loading');
   protected readonly error = signal('');
   protected readonly cases = signal<PaCase[]>([]);
+  protected readonly showUpload = signal(false);
   protected readonly query = signal('');
   protected readonly status = signal<string>(this.route.snapshot.queryParamMap.get('status') ?? 'all');
 

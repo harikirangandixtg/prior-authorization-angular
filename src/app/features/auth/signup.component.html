@@ -1,0 +1,66 @@
+<div class="auth-wrap">
+  <section class="card auth-card wide" aria-labelledby="auth-title">
+    <div class="auth-icon"><app-icon name="user" [size]="26" /></div>
+    <h1 id="auth-title">Create your account</h1>
+    <p class="lede">Only &#64;xtglobal.com email addresses can register.</p>
+
+    @if (error()) {
+    <app-alert tone="danger" heading="Could not create the account">{{ error() }}</app-alert>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="auth-form">
+      <div class="field">
+        <label for="full_name">Full name <span class="optional">Optional</span></label>
+        <input id="full_name" formControlName="full_name" autocomplete="name" placeholder="Jane Doe" />
+      </div>
+
+      <div class="field">
+        <label for="email">Work email <span class="req" aria-hidden="true">*</span></label>
+        <input id="email" type="email" formControlName="email" autocomplete="username" placeholder="name@xtglobal.com"
+          [attr.aria-invalid]="err('email') ? 'true' : null" />
+        @if (err('email'); as e) { <div class="field-error">{{ e }}</div> }
+      </div>
+
+      <div class="field">
+        <label for="password">Password <span class="req" aria-hidden="true">*</span></label>
+        <app-password-input inputId="password" [control]="form.controls.password" autocomplete="new-password"
+          [invalid]="!!err('password')" describedBy="pw-rules" />
+        @if (err('password'); as e) { <div class="field-error">{{ e }}</div> }
+        <ul class="pw-rules" id="pw-rules">
+          @for (c of checks(); track c.label) {
+          <li [class.ok]="c.ok"><app-icon [name]="c.ok ? 'check-circle' : 'clock'" [size]="14" /> {{ c.label }}</li>
+          }
+        </ul>
+      </div>
+
+      <div class="field">
+        <label for="confirm_password">Confirm password <span class="req" aria-hidden="true">*</span></label>
+        <app-password-input inputId="confirm_password" [control]="form.controls.confirm_password"
+          autocomplete="new-password" [invalid]="!!err('confirm_password')" />
+        @if (err('confirm_password'); as e) { <div class="field-error">{{ e }}</div> }
+      </div>
+
+      <fieldset class="field role-field">
+        <legend>Role <span class="req" aria-hidden="true">*</span></legend>
+        <label class="check-row">
+          <input type="radio" name="role" formControlName="role" value="requester" />
+          <span><strong>Requester</strong><span class="muted small">Create prior authorization requests and bulk
+              upload</span></span>
+        </label>
+        <label class="check-row">
+          <input type="radio" name="role" formControlName="role" value="reviewer" />
+          <span><strong>Reviewer</strong><span class="muted small">Review the AI findings and accept or correct
+              them</span></span>
+        </label>
+      </fieldset>
+
+      <button type="submit" class="btn btn-primary btn-lg btn-block" [disabled]="busy()">
+        {{ busy() ? 'Creating account…' : 'Create account' }}
+      </button>
+    </form>
+
+    <div class="auth-links center-links">
+      <span>Already registered? <a routerLink="/login">Sign in</a></span>
+    </div>
+  </section>
+</div>

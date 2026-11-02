@@ -24,4 +24,7 @@ Case detail (Criteria / Evidence / Draft packet / Audit trail, review panel).
   `{decision: 'ACCEPTED'|'CORRECTED', comment, corrections:[{criterion_id,status,rationale}]}`.
   Change only `toReviewPayload()` in `src/app/core/api.service.ts` if the real schema differs.
 - Case creation is implemented as `POST /cases` (the spec labelled it GET).
-- Policy Search is not included (no API for it).
+- Policy Search uses GET /policies (all four filters optional; empty ones are not sent).
+
+## Sign in (mock accounts)
+`npm run mock` seeds: admin@xtglobal.com (requester+reviewer), requester@xtglobal.com, reviewer@xtglobal.com. Password for all: `Welcome123`.

@@ -6,4 +6,6 @@ export const environment = {
    * behind a reverse proxy that forwards /api to the backend.
    */
   apiBaseUrl: '/api/authorization',
+  /** Auth API (signup, login, reset password, current user). */
+  authBaseUrl: '/api/auth',
 };

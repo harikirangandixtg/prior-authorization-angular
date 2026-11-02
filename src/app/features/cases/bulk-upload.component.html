@@ -1,0 +1,140 @@
+<div class="overlay" (click)="close()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bu-title" (click)="$event.stopPropagation()">
+    <header class="modal-head">
+      <h2 id="bu-title">Bulk upload cases</h2>
+      <button type="button" class="icon-btn" aria-label="Close" [disabled]="busy" (click)="close()">
+        <app-icon name="x" [size]="20" />
+      </button>
+    </header>
+
+    <div class="modal-body">
+      @switch (phase()) {
+        @case ('select') {
+          <div
+            class="dropzone"
+            [class.dragging]="dragging()"
+            [class.has-file]="file()"
+            (dragover)="onDragOver($event)"
+            (dragleave)="dragging.set(false)"
+            (drop)="onDrop($event)"
+          >
+            @if (file(); as f) {
+              <app-icon name="file-text" [size]="34" />
+              <div class="strong">{{ f.name }}</div>
+              <div class="muted small">{{ size(f) }}</div>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="removeFile()">Remove</button>
+            } @else {
+              <app-icon name="upload" [size]="34" />
+              <div class="strong">Drag and drop your CSV here</div>
+              <div class="muted small">or</div>
+              <label class="btn btn-secondary btn-sm file-btn">
+                Choose file
+                <input type="file" accept=".csv,text/csv" (change)="onPick($event)" />
+              </label>
+            }
+          </div>
+
+          @if (fileError()) {
+            <p class="field-error" role="alert">{{ fileError() }}</p>
+          }
+
+          <div class="columns-help">
+            <div>
+              <span class="eyebrow">Required columns</span>
+              <div class="tally">@for (c of required; track c) { <span class="chip tone-info mono">{{ c }}</span> }</div>
+            </div>
+            <div>
+              <span class="eyebrow">Optional columns</span>
+              <div class="tally">@for (c of optional; track c) { <span class="chip tone-neutral mono">{{ c }}</span> }</div>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="downloadTemplate()">
+              <app-icon name="download" [size]="16" /> Download template
+            </button>
+          </div>
+
+          <label class="check-row">
+            <input type="checkbox" [checked]="analyze()" (change)="analyze.set($any($event.target).checked)" />
+            <span>
+              <strong>Analyze cases after upload</strong>
+              <span class="muted small">Runs the AI analysis for every created case. This takes longer.</span>
+            </span>
+          </label>
+        }
+
+        @case ('uploading') {
+          <div class="modal-status">
+            <div class="spinner" aria-hidden="true"></div>
+            <h3>Uploading and validating…</h3>
+            <p class="muted">{{ elapsed() }}s elapsed</p>
+          </div>
+        }
+
+        @case ('processing') {
+          <div class="modal-status">
+            <div class="spinner" aria-hidden="true"></div>
+            <h3>Analyzing cases…</h3>
+            <p class="muted">Cases are created. The analysis runs in the background. {{ elapsed() }}s elapsed.</p>
+          </div>
+        }
+
+        @case ('failed') {
+          <app-alert tone="danger" heading="Upload failed">{{ failure() }}</app-alert>
+        }
+
+        @case ('done') {
+          <div class="result-tiles">
+            <div class="result-tile tone-success">
+              <div class="kpi-value">{{ createdCount() }}</div>
+              <div class="kpi-label">Cases created</div>
+            </div>
+            <div class="result-tile" [class.tone-danger]="rowErrors().length">
+              <div class="kpi-value">{{ rowErrors().length }}</div>
+              <div class="kpi-label">Rows with errors</div>
+            </div>
+          </div>
+
+          @if (createdIds().length) {
+            <div class="tally">
+              @for (id of createdIds().slice(0, 12); track id) { <span class="chip tone-success mono">{{ id }}</span> }
+              @if (createdIds().length > 12) { <span class="muted small">+{{ createdIds().length - 12 }} more</span> }
+            </div>
+          }
+
+          @if (rowErrors().length) {
+            <h3 class="modal-sub">Rows that were skipped</h3>
+            <div class="table-wrap error-table">
+              <table class="table compact">
+                <thead><tr><th>Row</th><th>Problem</th></tr></thead>
+                <tbody>
+                  @for (e of rowErrors(); track $index) {
+                    <tr><td class="mono nowrap">{{ e.row || '—' }}</td><td>{{ e.message }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <p class="muted small">The other rows were saved. Fix the skipped rows and upload only those, to avoid creating duplicates.</p>
+          }
+        }
+      }
+    </div>
+
+    <footer class="modal-foot">
+      @switch (phase()) {
+        @case ('select') {
+          <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
+          <button type="button" class="btn btn-primary" [disabled]="!file()" (click)="start()">
+            <app-icon name="upload" [size]="18" /> Upload
+          </button>
+        }
+        @case ('failed') {
+          <button type="button" class="btn btn-ghost" (click)="close()">Close</button>
+          <button type="button" class="btn btn-primary" (click)="again()">Try again</button>
+        }
+        @case ('done') {
+          <button type="button" class="btn btn-ghost" (click)="again()">Upload another</button>
+          <button type="button" class="btn btn-primary" (click)="close()">Done</button>
+        }
+      }
+    </footer>
+  </div>
+</div>

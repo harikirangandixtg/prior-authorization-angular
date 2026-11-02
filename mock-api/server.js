@@ -34,6 +34,7 @@ const goodCriteria = () => [
 ];
 
 const cases = new Map();
+const jobs = new Map();
 const audits = new Map();
 
 function seed(c) { cases.set(c.case_id, c); }
@@ -171,14 +172,104 @@ const send = (res, code, body) => {
 const notFound = (res, what = 'Case not found.') => send(res, 404, { detail: what });
 const readBody = (r) => new Promise((ok) => { let s = ''; r.on('data', (c) => (s += c)); r.on('end', () => { try { ok(JSON.parse(s || '{}')); } catch { ok(null); } }); });
 
+// ---------------------------------------------------------------- auth (mock)
+const EXPIRES_IN = 28800;
+const users = new Map();
+const sessions = new Map(); // token -> { user, exp }
+const addUser = (email, password, full_name, roles) => users.set(email, { user_id: 'USR-' + Math.random().toString(36).slice(2, 12).toUpperCase(), email, password, full_name, roles, allowed_patients: ['*'] });
+addUser('admin@xtglobal.com', 'Welcome123', 'Admin User', ['requester', 'reviewer']);
+addUser('requester@xtglobal.com', 'Welcome123', 'Rita Requester', ['requester']);
+addUser('reviewer@xtglobal.com', 'Welcome123', 'Ravi Reviewer', ['reviewer']);
+users.get('reviewer@xtglobal.com').allowed_patients = ['P-1002'];
+const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+const publicUser = (u) => ({ user_id: u.user_id, email: u.email, full_name: u.full_name, roles: u.roles, allowed_patients: u.allowed_patients });
+const issue = (u) => { const exp = Date.now() + EXPIRES_IN * 1000; const token = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: u.user_id, exp })}.${Math.random().toString(36).slice(2)}`; sessions.set(token, { user: u, exp }); return { access_token: token, token_type: 'bearer', expires_in: EXPIRES_IN, user: publicUser(u) }; };
+const pwProblem = (pw) => (typeof pw !== 'string' || pw.length < 8 || pw.length > 128) ? 'Password must be 8-128 characters.' : !/[A-Za-z]/.test(pw) || !/\d/.test(pw) ? 'Password needs at least one letter and one number.' : !/^[A-Za-z0-9@#$%^&*!?\-_.]+$/.test(pw) ? 'Password contains characters that are not allowed.' : null;
+const v422 = (loc, msg, type = 'value_error') => ({ detail: [{ type, loc: ['body', ...loc], msg, input: null }] });
+
 http.createServer(async (rq, res) => {
   const url = new URL(rq.url, 'http://x');
   if (rq.method === 'OPTIONS') return send(res, 204, {});
+  if (url.pathname.startsWith('/api/auth/')) {
+    const route = url.pathname.slice('/api/auth/'.length);
+    if (route === 'me' && rq.method === 'GET') {
+      const t = (rq.headers.authorization || '').replace(/^Bearer /, ''); const sess = sessions.get(t);
+      return sess && sess.exp > Date.now() ? send(res, 200, publicUser(sess.user)) : send(res, 401, { detail: 'Not authenticated' });
+    }
+    const b = await readBody(rq);
+    if (!b) return send(res, 422, v422([], 'Input should be a valid dictionary'));
+    if (route === 'signup' && rq.method === 'POST') {
+      const allowed = ['email', 'password', 'confirm_password', 'full_name', 'roles'];
+      const extra = Object.keys(b).filter((k) => !allowed.includes(k));
+      if (extra.length) return send(res, 422, { detail: extra.map((k) => ({ type: 'extra_forbidden', loc: ['body', k], msg: 'Extra inputs are not permitted', input: b[k] })) });
+      if (!Array.isArray(b.roles) || !b.roles.length || b.roles.some((r) => !['requester', 'reviewer'].includes(r))) return send(res, 422, v422(['roles'], 'Value error, roles must be 1 or 2 of requester, reviewer'));
+      if (pwProblem(b.password)) return send(res, 422, v422(['password'], 'Value error, ' + pwProblem(b.password)));
+      if (b.password !== b.confirm_password) return send(res, 422, v422([], 'Value error, passwords do not match'));
+      if (typeof b.email !== 'string' || !/^[^\s@]+@[^\s@]+$/.test(b.email)) return send(res, 422, v422(['email'], 'value is not a valid email address'));
+      const email = b.email.toLowerCase();
+      if (!/@([a-z0-9-]+\.)*xtglobal\.com$/.test(email)) return send(res, 400, { detail: 'Email must be an @xtglobal.com address.' });
+      if (users.has(email)) return send(res, 409, { detail: 'An account with this email already exists.' });
+      addUser(email, b.password, b.full_name || null, [...new Set(b.roles)]);
+      return send(res, 201, issue(users.get(email)));
+    }
+    if (route === 'login' && rq.method === 'POST') {
+      const u = users.get(String(b.email || '').toLowerCase());
+      return u && u.password === b.password ? send(res, 200, issue(u)) : send(res, 401, { detail: 'Invalid email or password.' });
+    }
+    if (route === 'password' && rq.method === 'POST') {
+      if (pwProblem(b.new_password)) return send(res, 422, v422(['new_password'], 'Value error, ' + pwProblem(b.new_password)));
+      if (b.new_password !== b.confirm_password) return send(res, 422, v422([], 'Value error, passwords do not match'));
+      const u = users.get(String(b.email || '').toLowerCase()); if (u) u.password = b.new_password;
+      return send(res, 200, { status: 'ok', message: 'If the account exists, the password has been updated.' });
+    }
+    return notFound(res, 'Not Found');
+  }
   if (!url.pathname.startsWith(BASE)) return notFound(res, 'Not Found');
+  const authUser = (() => { const t = (rq.headers.authorization || '').replace(/^Bearer /, ''); const s2 = sessions.get(t); return s2 && s2.exp > Date.now() ? s2.user : null; })();
+  if (!authUser) return send(res, 401, { detail: 'Not authenticated' });
   const parts = url.pathname.slice(BASE.length).split('/').filter(Boolean); // ['cases', id, action]
+  if (parts[0] === 'policies' && rq.method === 'GET') {
+    const pol = { policy_id: 'NW-MRI-LSPINE-v3', title: 'Lumbar Spine MRI - Medical Necessity Criteria', payer: 'Northwind Health (fictional)', effective: '2026-01-01', effective_to: null, criteria_count: 4, criteria_ids: ['C1', 'C2a', 'C2b', 'C2c'] };
+    const all = [
+      { rule_reference: 'NORTHWIND|NW-PPO-GOLD|MRI-LSPINE-001', payer_id: 'NORTHWIND', plan_id: 'NW-PPO-GOLD', service_code: 'MRI-LSPINE-001', pa_required: 'yes', policy_id: pol.policy_id, policy_summary: pol },
+      { rule_reference: 'NORTHWIND|NW-HMO-BASIC|MRI-LSPINE-001', payer_id: 'NORTHWIND', plan_id: 'NW-HMO-BASIC', service_code: 'MRI-LSPINE-001', pa_required: 'yes', policy_id: pol.policy_id, policy_summary: pol },
+      { rule_reference: 'NORTHWIND|NW-PPO-GOLD|XRAY-LSPINE-001', payer_id: 'NORTHWIND', plan_id: 'NW-PPO-GOLD', service_code: 'XRAY-LSPINE-001', pa_required: 'no', policy_id: null },
+    ];
+    const g = (k) => (url.searchParams.get(k) || '').toLowerCase();
+    const items = all.filter((i) => (!g('payer_id') || i.payer_id.toLowerCase() === g('payer_id')) && (!g('plan_id') || i.plan_id.toLowerCase() === g('plan_id')) && (!g('service_code') || i.service_code.toLowerCase() === g('service_code')));
+    return send(res, 200, items.length ? { status: 'FOUND', count: items.length, items, message: null } : { status: 'NOT_FOUND', count: 0, items: [], message: 'No matching policy rules.' });
+  }
   if (parts[0] !== 'cases') return notFound(res, 'Not Found');
   const [, id, action] = parts;
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // ---- bulk upload (mock): POST /cases/upload?analyze=  and  GET /cases/upload/jobs/:id
+  if (id === 'upload' && rq.method === 'POST' && !parts[2]) {
+    if (!authUser.roles.includes('requester')) return send(res, 403, { detail: 'Requires role: requester' });
+    const raw = await new Promise((ok) => { let s = ''; rq.on('data', (c) => (s += c)); rq.on('end', () => ok(s)); });
+    const m = raw.match(/name="file"[^\r\n]*\r?\n(?:[^\r\n]+\r?\n)*\r?\n([\s\S]*?)\r?\n--/);
+    const lines = (m ? m[1] : '').split(/\r?\n/).filter(Boolean);
+    const cols = (lines.shift() || '').split(',').map((s) => s.trim());
+    const created = []; const errors = [];
+    lines.forEach((ln, i) => {
+      const v = ln.split(','); const r = Object.fromEntries(cols.map((c, j) => [c, (v[j] || '').trim()]));
+      const miss = ['patient_id', 'payer_id', 'plan_id', 'service_code', 'order_date'].filter((f) => !r[f]);
+      if (miss.length) return errors.push({ row: i + 2, message: 'Missing: ' + miss.join(', ') });
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(r.order_date)) return errors.push({ row: i + 2, message: 'order_date must be YYYY-MM-DD' });
+      const case_id = 'PA-' + Math.random().toString(16).slice(2, 12).toUpperCase(); const now = new Date().toISOString();
+      cases.set(case_id, { case_id, status: 'CREATED', patient_id: r.patient_id, request: { encounter_id: '', service_description: '', diagnosis_code: '', diagnosis_text: '', ordering_provider: '', ...r }, created_by: 'dev.user', created_at: now, updated_at: now, analyzed: false, overall: null, policy_id: null, criteria: [], open_items: [], notes: [], verifier: null, human_review: { required: true, review_status: 'PENDING' }, submission: { status: 'NOT_SUBMITTED' } });
+      audit(case_id, 'CASE_CREATED'); created.push({ case_id });
+    });
+    if (url.searchParams.get('analyze') === 'true') {
+      const job_id = 'job-' + Date.now(); jobs.set(job_id, { at: Date.now() + 5000, created, errors });
+      return send(res, 202, { job_id, status: 'queued' });
+    }
+    return send(res, 200, { created, errors });
+  }
+  if (id === 'upload' && parts[2] === 'jobs' && rq.method === 'GET') {
+    const j = jobs.get(parts[3]); if (!j) return notFound(res, 'Job not found.');
+    return send(res, 200, Date.now() >= j.at ? { job_id: parts[3], status: 'completed', created: j.created, errors: j.errors } : { job_id: parts[3], status: 'running' });
+  }
 
   if (!id && rq.method === 'GET') {
     return send(res, 200, [...cases.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)));

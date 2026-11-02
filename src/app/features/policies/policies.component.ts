@@ -1,7 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthorizationApi } from '../../core/api.service';
+import { AuthService } from '../../core/auth.service';
 import { toApiError } from '../../core/api-error';
 import { PolicySearchResponse } from '../../core/models';
 import { paRequired } from '../../core/presentation';
@@ -11,11 +13,12 @@ import { IconComponent } from '../../shared/icon.component';
 
 @Component({
   selector: 'app-policies',
-  imports: [DatePipe, ReactiveFormsModule, AlertComponent, ChipComponent, IconComponent],
+  imports: [DatePipe, ReactiveFormsModule, RouterLink, AlertComponent, ChipComponent, IconComponent],
   templateUrl: './policies.component.html',
 })
 export class PoliciesComponent {
   private readonly api = inject(AuthorizationApi);
+  protected readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder).nonNullable;
 
   protected readonly paRequired = paRequired;
@@ -37,8 +40,7 @@ export class PoliciesComponent {
 
   protected search(): void {
     this.state.set('loading');
-    const f = this.form.getRawValue();
-    this.api.searchPolicies(f.payer_id, f.plan_id, f.service_code, f.query).subscribe({
+    this.api.searchPolicies(this.form.getRawValue()).subscribe({
       next: (r) => {
         this.result.set(r);
         this.state.set('ready');

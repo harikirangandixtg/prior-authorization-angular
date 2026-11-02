@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthorizationApi } from '../../core/api.service';
+import { AuthService } from '../../core/auth.service';
 import { ApiError, toApiError } from '../../core/api-error';
 import { CaseRequest, PaCase } from '../../core/models';
 import { todayIso } from '../../core/presentation';
@@ -33,6 +34,7 @@ const SAMPLE: CaseRequest = {
 export class NewRequestComponent {
   private readonly fb = inject(FormBuilder).nonNullable;
   private readonly api = inject(AuthorizationApi);
+  protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -63,7 +65,6 @@ export class NewRequestComponent {
       const v = q.get(f);
       if (v) this.form.get(f)?.setValue(v);
     }
-
     inject(DestroyRef).onDestroy(() => this.stopClock());
   }
 
@@ -94,6 +95,13 @@ export class NewRequestComponent {
     this.form.markAllAsTouched();
     if (this.form.invalid) {
       this.host.nativeElement.querySelector<HTMLElement>('.ng-invalid[formControlName]')?.focus();
+      return;
+    }
+
+    const patient = this.form.controls.patient_id.value.trim();
+    if (!this.auth.canAccessPatient(patient)) {
+      this.form.controls.patient_id.setErrors({ server: 'Your account does not have access to this patient.' });
+      this.host.nativeElement.querySelector<HTMLElement>('#patient_id')?.focus();
       return;
     }
 

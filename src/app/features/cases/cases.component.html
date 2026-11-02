@@ -3,8 +3,17 @@
     <h1>Cases</h1>
     <p class="lede">All prior authorization requests, newest activity first.</p>
   </div>
-  <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a>
+  <div class="actions">
+    @if (auth.can('requester')) {
+    <button type="button" class="btn btn-secondary" (click)="showUpload.set(true)"><app-icon name="upload" [size]="18" /> Bulk upload</button>
+    }
+    @if (auth.can('requester')) { <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a> }
+  </div>
 </section>
+
+@if (showUpload()) {
+  <app-bulk-upload (closed)="showUpload.set(false)" (uploaded)="load()" />
+}
 
 @if (state() === 'error') {
   <app-alert tone="danger" heading="Could not load cases">
@@ -59,7 +68,7 @@
         <app-icon name="inbox" [size]="32" />
         <h3>No cases yet</h3>
         <p>Create your first prior authorization request to see it here.</p>
-        <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a>
+        @if (auth.can('requester')) { <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a> }
       </div>
     }
   }

@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom, Observable } from 'rxjs';
 import { AuthorizationApi } from '../../core/api.service';
+import { AuthService } from '../../core/auth.service';
 import { toApiError } from '../../core/api-error';
 import { AuditEvent, AuditResponse, Criterion, DraftResponse, EvidenceItem, EvidenceResponse, PaCase } from '../../core/models';
 import {
@@ -58,6 +59,7 @@ interface CorrectionRow {
 })
 export class CaseDetailComponent {
   private readonly api = inject(AuthorizationApi);
+  protected readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
