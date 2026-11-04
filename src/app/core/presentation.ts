@@ -132,3 +132,11 @@ export function paRequired(v: string | null | undefined): Presentation {
     default: return fallback(v);
   }
 }
+
+export function roleLabel(role: string): string {
+  switch (role) {
+    case 'requester': return 'Staff';
+    case 'reviewer': return 'Reviewer';
+    default: return humanize(role);
+  }
+}

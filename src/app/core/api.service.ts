@@ -112,9 +112,8 @@ export class AuthorizationApi {
 }
 
 function toReviewPayload(review: ReviewDecision): Record<string, unknown> {
-  return {
-    decision: review.decision, // 'ACCEPTED' | 'CORRECTED'
-    comment: review.comment,
-    corrections: review.corrections, // [{ criterion_id, status, rationale }]
-  };
+  const body: Record<string, unknown> = { decision: review.decision };
+  if (review.comments) body['comments'] = review.comments;
+  if (review.decision === 'CORRECTED') body['corrected_narrative'] = review.corrected_narrative;
+  return body;
 }

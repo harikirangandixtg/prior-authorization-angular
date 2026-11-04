@@ -43,15 +43,6 @@ interface Loadable<T> {
 }
 const idle = <T,>(): Loadable<T> => ({ state: 'idle', data: null, error: '' });
 
-interface CorrectionRow {
-  criterion_id: string;
-  text: string;
-  status: string;
-  rationale: string;
-  origStatus: string;
-  origRationale: string;
-}
-
 @Component({
   selector: 'app-case-detail',
   imports: [DatePipe, FormsModule, RouterLink, AlertComponent, ChipComponent, CitedTextComponent, IconComponent, RefComponent],
@@ -86,10 +77,9 @@ export class CaseDetailComponent {
   protected readonly rerunning = signal(false);
 
   // review form
-  protected readonly statusOptions = ['Met', 'NotMet', 'Unknown', 'Conflicting'];
-  protected decision: 'ACCEPTED' | 'CORRECTED' = 'ACCEPTED';
+  protected decision: 'ACCEPTED' | 'CORRECTED' | 'REJECTED' = 'ACCEPTED';
   protected comment = '';
-  protected corrections: CorrectionRow[] = [];
+  protected correctedNarrative = '';
   protected readonly reviewBusy = signal(false);
   protected readonly reviewError = signal('');
 
@@ -162,16 +152,9 @@ export class CaseDetailComponent {
 
   private setCase(c: PaCase): void {
     this.detail.set(c);
-    this.corrections = c.criteria.map((k) => ({
-      criterion_id: k.criterion_id,
-      text: k.text,
-      status: k.status,
-      rationale: k.rationale ?? '',
-      origStatus: k.status,
-      origRationale: k.rationale ?? '',
-    }));
     this.decision = 'ACCEPTED';
     this.comment = '';
+    this.correctedNarrative = '';
     this.reviewError.set('');
   }
 
@@ -228,15 +211,25 @@ export class CaseDetailComponent {
     }
   }
 
+  /** Picks Accept / Correct / Reject. For Correct, pre-fills the editor with the current draft narrative. */
+  protected async chooseDecision(d: 'ACCEPTED' | 'CORRECTED' | 'REJECTED'): Promise<void> {
+    this.decision = d;
+    if (d !== 'CORRECTED' || this.correctedNarrative.trim()) return;
+    try {
+      this.correctedNarrative =
+        this.draft().data?.narrative ?? (await firstValueFrom(this.api.getDraft(this.caseId))).narrative;
+    } catch {
+      /* the reviewer can still type or paste the narrative */
+    }
+  }
+
   protected async submitReview(): Promise<void> {
     const c = this.detail();
     if (!c || this.reviewBusy()) return;
 
-    const changed = this.corrections.filter(
-      (r) => r.status !== r.origStatus || r.rationale.trim() !== r.origRationale.trim(),
-    );
-    if (this.decision === 'CORRECTED' && !changed.length && !this.comment.trim()) {
-      this.reviewError.set('Change at least one criterion, or add a comment, to record a correction.');
+    const narrative = this.correctedNarrative.trim();
+    if (this.decision === 'CORRECTED' && !narrative) {
+      this.reviewError.set('Enter the full corrected narrative.');
       return;
     }
 
@@ -246,11 +239,8 @@ export class CaseDetailComponent {
       await firstValueFrom(
         this.api.submitReview(c.case_id, {
           decision: this.decision,
-          comment: this.comment.trim(),
-          corrections:
-            this.decision === 'CORRECTED'
-              ? changed.map((r) => ({ criterion_id: r.criterion_id, status: r.status, rationale: r.rationale.trim() }))
-              : [],
+          comments: this.comment.trim(),
+          corrected_narrative: this.decision === 'CORRECTED' ? narrative : undefined,
         }),
       );
       this.setCase(await firstValueFrom(this.api.getCase(c.case_id)));

@@ -10,6 +10,12 @@ import { BulkUploadComponent } from './bulk-upload.component';
 import { CaseTableComponent } from '../../shared/case-table.component';
 import { IconComponent } from '../../shared/icon.component';
 
+/** Dashboard shortcuts. The tests match the way the dashboard counts these cases. */
+const VIEWS: Record<string, { label: string; test: (c: PaCase) => boolean }> = {
+  needs_info: { label: 'Needs information', test: (c) => c.overall === 'NeedsInformation' },
+  reviewed: { label: 'Reviewed', test: (c) => c.status.startsWith('REVIEWED') },
+};
+
 @Component({
   selector: 'app-cases',
   imports: [RouterLink, AlertComponent, BulkUploadComponent, CaseTableComponent, IconComponent],
@@ -24,6 +30,8 @@ export class CasesComponent {
   protected readonly error = signal('');
   protected readonly cases = signal<PaCase[]>([]);
   protected readonly showUpload = signal(false);
+  protected readonly view = signal<string | null>(this.route.snapshot.queryParamMap.get('view'));
+  protected readonly viewLabel = computed(() => (this.view() ? (VIEWS[this.view()!]?.label ?? null) : null));
   protected readonly query = signal('');
   protected readonly status = signal<string>(this.route.snapshot.queryParamMap.get('status') ?? 'all');
 
@@ -37,14 +45,16 @@ export class CasesComponent {
   protected readonly filtered = computed(() => {
     const q = this.query().trim().toLowerCase();
     const st = this.status();
+    const v = this.view() ? VIEWS[this.view()!] : null;
     return this.cases()
+      .filter((c) => !v || v.test(c))
       .filter((c) => st === 'all' || c.status === st)
       .filter(
         (c) =>
           !q ||
           [c.case_id, c.patient_id, c.request.service_code, c.request.service_description, c.request.diagnosis_code]
             .filter(Boolean)
-            .some((v) => String(v).toLowerCase().includes(q)),
+            .some((val) => String(val).toLowerCase().includes(q)),
       )
       .sort(byUpdatedDesc);
   });
@@ -74,5 +84,6 @@ export class CasesComponent {
   protected clear(): void {
     this.query.set('');
     this.status.set('all');
+    this.view.set(null);
   }
 }

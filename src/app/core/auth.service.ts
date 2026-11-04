@@ -48,6 +48,21 @@ export class AuthService {
   readonly user = computed(() => this.session()?.user ?? null);
   readonly token = computed(() => this.session()?.token ?? null);
   readonly isLoggedIn = computed(() => this.session() !== null);
+  /**
+   * What each role may do: the ONE place to change. Templates read these flags, so a screen never
+   * checks role names itself. Someone with both roles gets everything.
+   */
+  readonly perms = computed(() => {
+    const roles = this.user()?.roles ?? [];
+    const requester = roles.includes('requester');
+    const reviewer = roles.includes('reviewer');
+    return {
+      createRequests: requester, // New request, Start request from Policy search
+      bulkUpload: requester, // Bulk upload on Cases
+      runAnalysis: requester, // Run / Re-run analysis
+      review: reviewer, // Accept or correct findings
+    };
+  });
   readonly hasAllPatients = computed(() => this.user()?.allowed_patients?.includes('*') ?? false);
 
   constructor() {

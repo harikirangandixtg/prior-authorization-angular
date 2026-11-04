@@ -129,9 +129,9 @@ export interface AuditResponse {
 
 /** What the reviewer decides in the UI. */
 export interface ReviewDecision {
-  decision: 'ACCEPTED' | 'CORRECTED';
-  comment: string;
-  corrections: { criterion_id: string; status: string; rationale: string }[];
+  decision: 'ACCEPTED' | 'CORRECTED' | 'REJECTED';
+  corrected_narrative?: string;   // required only for CORRECTED, max 8000
+  comments?: string;              // optional, max 2000
 }
 
 export interface PolicySummary {

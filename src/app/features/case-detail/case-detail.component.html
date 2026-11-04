@@ -34,10 +34,10 @@
           </p>
         </div>
         <div class="actions">
-          <button type="button" class="btn btn-secondary" (click)="rerun()" [disabled]="rerunning()">
+          @if (auth.perms().runAnalysis) { <button type="button" class="btn btn-secondary" (click)="rerun()" [disabled]="rerunning()">
             <app-icon name="refresh" [size]="18" />
             {{ rerunning() ? 'Analyzing…' : c.analyzed && c.criteria.length ? 'Re-run analysis' : 'Run analysis' }}
-          </button>
+          </button> }
         </div>
       </section>
 
@@ -120,10 +120,10 @@
               <div class="card empty">
                 <app-icon name="clock" [size]="32" />
                 <h3>{{ c.status === 'FAILED' ? 'The analysis did not produce results' : 'This case has not been analyzed yet' }}</h3>
-                <p>Run the analysis to check the record against the policy criteria.</p>
-                <button type="button" class="btn btn-primary" (click)="rerun()" [disabled]="rerunning()">
+                <p>{{ auth.perms().runAnalysis ? 'Run the analysis to check the record against the policy criteria.' : 'A staff member needs to run the analysis first.' }}</p>
+                @if (auth.perms().runAnalysis) { <button type="button" class="btn btn-primary" (click)="rerun()" [disabled]="rerunning()">
                   <app-icon name="sparkles" [size]="18" /> Run analysis
-                </button>
+                </button> }
               </div>
             } @else {
               <section class="card flush">
@@ -327,9 +327,9 @@
                   <app-icon name="file-text" [size]="32" />
                   <h3>No draft yet</h3>
                   <p>{{ draft().error || 'A draft packet is generated when the case is analyzed.' }}</p>
-                  <button type="button" class="btn btn-primary" (click)="rerun()" [disabled]="rerunning()">
+                  @if (auth.perms().runAnalysis) { <button type="button" class="btn btn-primary" (click)="rerun()" [disabled]="rerunning()">
                     <app-icon name="sparkles" [size]="18" /> Run analysis
-                  </button>
+                  </button> }
                 </div>
               }
               @case ('error') {
@@ -420,41 +420,35 @@
             }
           </section>
 
-          @if (auth.can('reviewer')) {
+          @if (auth.perms().review) {
           <section class="card" id="review">
             <h2 class="card-title">{{ c.human_review.reviewer_id ? 'Update review' : 'Review this case' }}</h2>
             @if (!canReview()) {
               <p class="muted">There is nothing to review yet. Run the analysis first.</p>
             } @else {
               <div class="segmented" role="radiogroup" aria-label="Review decision">
-                <button type="button" role="radio" [attr.aria-checked]="decision === 'ACCEPTED'" [class.active]="decision === 'ACCEPTED'" (click)="decision = 'ACCEPTED'">
+                <button type="button" role="radio" [attr.aria-checked]="decision === 'ACCEPTED'" [class.active]="decision === 'ACCEPTED'" (click)="chooseDecision('ACCEPTED')">
                   <app-icon name="check-circle" [size]="16" /> Accept
                 </button>
-                <button type="button" role="radio" [attr.aria-checked]="decision === 'CORRECTED'" [class.active]="decision === 'CORRECTED'" (click)="decision = 'CORRECTED'">
+                <button type="button" role="radio" [attr.aria-checked]="decision === 'CORRECTED'" [class.active]="decision === 'CORRECTED'" (click)="chooseDecision('CORRECTED')">
                   <app-icon name="clipboard" [size]="16" /> Correct
+                </button>
+                <button type="button" role="radio" [attr.aria-checked]="decision === 'REJECTED'" [class.active]="decision === 'REJECTED'" (click)="chooseDecision('REJECTED')">
+                  <app-icon name="x-circle" [size]="16" /> Reject
                 </button>
               </div>
 
               @if (decision === 'CORRECTED') {
-                <div class="corrections">
-                  @for (r of corrections; track r.criterion_id) {
-                    <div class="correction" [class.changed]="r.status !== r.origStatus || r.rationale !== r.origRationale">
-                      <div class="correction-top">
-                        <strong>{{ r.criterion_id }}</strong>
-                        <select [attr.aria-label]="'Status for ' + r.criterion_id" [(ngModel)]="r.status">
-                          @for (o of statusOptions; track o) { <option [value]="o">{{ criterionStatus(o).label }}</option> }
-                          @if (!statusOptions.includes(r.origStatus)) { <option [value]="r.origStatus">{{ criterionStatus(r.origStatus).label }}</option> }
-                        </select>
-                      </div>
-                      <textarea rows="2" [attr.aria-label]="'Rationale for ' + r.criterion_id" placeholder="Rationale" [(ngModel)]="r.rationale"></textarea>
-                    </div>
-                  }
+                <div class="field">
+                  <label for="corrected-narrative">Corrected narrative <span class="optional">Required</span></label>
+                  <textarea id="corrected-narrative" rows="10" maxlength="8000" [(ngModel)]="correctedNarrative" placeholder="Edit the full narrative here"></textarea>
+                  <p class="muted small">{{ correctedNarrative.length }} / 8000</p>
                 </div>
               }
 
               <div class="field">
                 <label for="review-comment">Comment <span class="optional">Optional</span></label>
-                <textarea id="review-comment" rows="3" [(ngModel)]="comment" placeholder="Anything the next person should know"></textarea>
+                <textarea id="review-comment" rows="3" maxlength="2000" [(ngModel)]="comment" placeholder="Anything the next person should know"></textarea>
               </div>
 
               @if (reviewError()) {
@@ -462,7 +456,7 @@
               }
 
               <button type="button" class="btn btn-primary btn-block" (click)="submitReview()" [disabled]="reviewBusy()">
-                {{ reviewBusy() ? 'Saving…' : decision === 'ACCEPTED' ? 'Accept findings' : 'Save correction' }}
+                {{ reviewBusy() ? 'Saving…' : decision === 'ACCEPTED' ? 'Accept findings' : decision === 'CORRECTED' ? 'Save correction' : 'Reject' }}
               </button>
             }
           </section>

@@ -183,7 +183,7 @@ export class BulkUploadComponent {
     const status = toApiError(err).status;
     this.failure.set(
       status === 403
-        ? `${message} Bulk upload needs the "requester" role.`
+        ? `${message} Bulk upload needs the staff role.`
         : message,
     );
     this.phase.set('failed');

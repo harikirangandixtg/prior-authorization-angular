@@ -4,10 +4,10 @@
     <p class="lede">All prior authorization requests, newest activity first.</p>
   </div>
   <div class="actions">
-    @if (auth.can('requester')) {
+    @if (auth.perms().bulkUpload) {
     <button type="button" class="btn btn-secondary" (click)="showUpload.set(true)"><app-icon name="upload" [size]="18" /> Bulk upload</button>
     }
-    @if (auth.can('requester')) { <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a> }
+    @if (auth.perms().createRequests) { <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a> }
   </div>
 </section>
 
@@ -68,7 +68,7 @@
         <app-icon name="inbox" [size]="32" />
         <h3>No cases yet</h3>
         <p>Create your first prior authorization request to see it here.</p>
-        @if (auth.can('requester')) { <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a> }
+        @if (auth.perms().createRequests) { <a class="btn btn-primary" routerLink="/new"><app-icon name="plus" [size]="18" /> New request</a> }
       </div>
     }
   }

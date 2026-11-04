@@ -4,6 +4,7 @@ import { ConnectionState } from './core/api.service';
 import { AuthService } from './core/auth.service';
 import { IconComponent } from './shared/icon.component';
 import { ToastsComponent } from './shared/toasts.component';
+import { roleLabel } from './core/presentation';
 
 @Component({
   selector: 'app-root',
@@ -24,16 +25,12 @@ import { ToastsComponent } from './shared/toasts.component';
           <div class="user-avatar" aria-hidden="true">{{ initials() }}</div>
           <div class="user-text">
             <div class="user-name">{{ auth.displayName }}</div>
-            <div class="user-roles">{{ u.roles.join(' · ') }}</div>
+            <div class="user-roles">{{ roleNames() }}</div>
           </div>
           <button type="button" class="signout" (click)="auth.logout()">
             <app-icon name="log-out" [size]="18" /> Sign out
           </button>
         </div>
-      } @else {
-        <p class="brand-tagline">
-          Streamline prior authorization with real-time policy lookup, clinical context and AI assistance.
-        </p>
       }
     </header>
 
@@ -46,7 +43,7 @@ import { ToastsComponent } from './shared/toasts.component';
               <app-icon name="home" [size]="20" /><span>Dashboard</span>
             </a>
           </li>
-          @if (auth.can('requester')) {
+          @if (auth.perms().createRequests) {
             <li>
               <a routerLink="/new" routerLinkActive="active">
                 <app-icon name="file-plus" [size]="20" /><span>New request</span>
@@ -102,4 +99,5 @@ export class AppComponent implements OnInit {
     const o = this.conn.online();
     return o === null ? 'Checking…' : o ? 'Connected' : 'Unreachable';
   });
+  protected readonly roleNames = computed(() => (this.auth.user()?.roles ?? []).map(roleLabel).join(' · '));
 }

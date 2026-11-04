@@ -303,6 +303,7 @@ http.createServer(async (rq, res) => {
   if (!action && rq.method === 'GET') return send(res, 200, c);
 
   if (action === 'analyze' && rq.method === 'POST') {
+    if (!authUser.roles.includes('requester')) return send(res, 403, { detail: 'Requires role: requester' });
     audit(id, 'ANALYZE_STARTED');
     await delay(ANALYZE_DELAY_MS);
     Object.assign(c, { analyzed: true, status: 'DRAFT_REQUIRES_REVIEW', overall: 'ReadyForReview', policy_id: 'NW-MRI-LSPINE-v3', criteria: goodCriteria(),
@@ -316,6 +317,7 @@ http.createServer(async (rq, res) => {
   if (action === 'audit' && rq.method === 'GET') return send(res, 200, { case_id: id, events: audits.get(id) || [] });
 
   if (action === 'review' && rq.method === 'POST') {
+    if (!authUser.roles.includes('reviewer')) return send(res, 403, { detail: 'Requires role: reviewer' });
     const b = await readBody(rq);
     const decision = b && (b.decision || b.review_status);
     if (!['ACCEPTED', 'CORRECTED', 'REJECTED'].includes(decision)) {

@@ -80,7 +80,7 @@
 
             <footer class="policy-foot">
               <span class="mono muted small" title="Rule reference">{{ i.rule_reference }}</span>
-              @if (i.pa_required.toLowerCase() === 'yes' && auth.can('requester')) {
+              @if (i.pa_required.toLowerCase() === 'yes' && auth.perms().createRequests) {
                 <a class="btn btn-secondary btn-sm" routerLink="/new" [queryParams]="requestParams(i)">
                   <app-icon name="file-plus" [size]="16" /> Start request
                 </a>

@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiError, toApiError } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
@@ -9,9 +9,6 @@ import { AlertComponent } from '../../shared/alert.component';
 import { IconComponent } from '../../shared/icon.component';
 import { PasswordInputComponent } from '../../shared/password-input.component';
 import { emailDomain, passwordChecks, passwordsMatch, strongPassword } from './auth-validators';
-
-const atLeastOneRole = (g: AbstractControl): ValidationErrors | null =>
-  g.get('requester')?.value || g.get('reviewer')?.value ? null : { noRole: true };
 
 @Component({
   selector: 'app-signup',
@@ -33,7 +30,7 @@ export class SignupComponent {
       email: ['', [Validators.required, emailDomain]],
       password: ['', [Validators.required, strongPassword]],
       confirm_password: ['', [Validators.required]],
-      roles: ['requester' as Role, [Validators.required]]
+      role: ['requester' as Role, [Validators.required]],
     },
     { validators: passwordsMatch('password', 'confirm_password') },
   );
@@ -63,9 +60,12 @@ export class SignupComponent {
     const body: SignupRequest = {
       email: v.email.trim(),
       password: v.password,
+      full_name: v.full_name.trim() || undefined,
       confirm_password: v.confirm_password,
-      roles: [v.roles],
+      roles: [v.role],
     };
+    console.log('Signup body:', body);
+    //return;
     if (v.full_name.trim()) body.full_name = v.full_name.trim();
 
     this.busy.set(true);
