@@ -36,8 +36,10 @@ export interface HumanReview {
   required: boolean;
   review_status: string; // PENDING | ACCEPTED | CORRECTED ...
   reviewer_id?: string;
+  reviewer_name?: string | null;
   reviewed_at?: string;
-  comment?: string;
+  comments?: string;
+  corrections?: string;
 }
 
 export interface Submission {
@@ -58,6 +60,7 @@ export interface PaCase {
   criteria: Criterion[];
   open_items: string[];
   notes: string[];
+  reason?: CaseReason | null;
   verifier: Verifier | null;
   human_review: HumanReview;
   submission: Submission;
@@ -210,4 +213,13 @@ export interface ResetPasswordRequest {
   email: string;
   new_password: string;
   confirm_password: string;
+}
+
+export interface CaseReason {
+  code: string;
+  title: string;
+  message: string;
+  what_happened: string;
+  how_to_fix: string;
+  who_fixes: string;
 }

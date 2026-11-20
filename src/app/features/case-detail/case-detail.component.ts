@@ -87,6 +87,13 @@ export class CaseDetailComponent {
   protected readonly canReview = computed(() => (this.detail()?.criteria.length ?? 0) > 0);
   protected readonly demoNote = computed(() => this.detail()?.notes.find((n) => /^DEMO MODE/i.test(n)) ?? null);
 
+  /** Accepted or rejected reviews are final: the form is not offered again. */
+  protected readonly reviewLocked = computed(() => {
+    const c = this.detail();
+    const v = `${c?.human_review?.review_status ?? ''} ${c?.status ?? ''}`.toUpperCase();
+    return /ACCEPT|REJECT/.test(v);
+  });
+
   protected readonly tally = computed(() => {
     const counts = new Map<string, number>();
     for (const k of this.detail()?.criteria ?? []) counts.set(k.status, (counts.get(k.status) ?? 0) + 1);
@@ -225,7 +232,7 @@ export class CaseDetailComponent {
 
   protected async submitReview(): Promise<void> {
     const c = this.detail();
-    if (!c || this.reviewBusy()) return;
+    if (!c || this.reviewBusy() || this.reviewLocked()) return;
 
     const narrative = this.correctedNarrative.trim();
     if (this.decision === 'CORRECTED' && !narrative) {

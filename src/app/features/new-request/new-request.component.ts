@@ -48,9 +48,9 @@ export class NewRequestComponent {
 
   protected readonly form = this.fb.group({
     patient_id: ['', [Validators.required]],
-    payer_id: ['NORTHWIND', [Validators.required]],
-    plan_id: ['NW-PPO-GOLD', [Validators.required]],
-    service_code: ['MRI-LSPINE-001', [Validators.required]],
+    payer_id: ['', [Validators.required]],
+    plan_id: ['', [Validators.required]],
+    service_code: ['', [Validators.required]],
     order_date: [todayIso(), [Validators.required, Validators.pattern(/^\d{4}-\d{2}-\d{2}$/)]],
     service_description: [''],
     diagnosis_code: [''],
@@ -74,7 +74,7 @@ export class NewRequestComponent {
   }
 
   protected reset(): void {
-    this.form.reset({ payer_id: 'NORTHWIND', plan_id: 'NW-PPO-GOLD', service_code: 'MRI-LSPINE-001', order_date: todayIso() });
+    this.form.reset({ payer_id: '', plan_id: '', service_code: '', order_date: todayIso() });
     this.submitted.set(false);
     this.formError.set('');
   }

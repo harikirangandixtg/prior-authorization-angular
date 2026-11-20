@@ -58,7 +58,7 @@
     <a routerLink="/cases" [queryParams]="{ status: 'FAILED' }">Show failed cases</a>
   </app-alert>
 }
-
+@if (auth.perms().createRequests) {
 <section class="card steps" aria-label="How it works">
   <div class="step">
     <div class="step-icon"><app-icon name="file-plus" [size]="22" /></div>
@@ -82,6 +82,7 @@
     </div>
   </div>
 </section>
+}
 
 <section class="card flush">
   <div class="card-head">

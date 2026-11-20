@@ -28,13 +28,13 @@
         </div>
         <div class="field">
           <label for="payer_id">Payer ID <span class="req" aria-hidden="true">*</span></label>
-          <input id="payer_id" formControlName="payer_id" list="payers" autocomplete="off" [attr.aria-invalid]="err('payer_id') ? 'true' : null" />
+          <input id="payer_id" formControlName="payer_id" placeholder="e.g. NORTHWIND" autocomplete="off" [attr.aria-invalid]="err('payer_id') ? 'true' : null" />
           <datalist id="payers"><option value="NORTHWIND"></option></datalist>
           @if (err('payer_id'); as e) { <div class="field-error">{{ e }}</div> }
         </div>
         <div class="field">
           <label for="plan_id">Plan ID <span class="req" aria-hidden="true">*</span></label>
-          <input id="plan_id" formControlName="plan_id" list="plans" autocomplete="off" [attr.aria-invalid]="err('plan_id') ? 'true' : null" />
+          <input id="plan_id" formControlName="plan_id" placeholder="e.g. NW-PPO-GOLD" autocomplete="off" [attr.aria-invalid]="err('plan_id') ? 'true' : null" />
           <datalist id="plans"><option value="NW-PPO-GOLD"></option></datalist>
           @if (err('plan_id'); as e) { <div class="field-error">{{ e }}</div> }
         </div>
@@ -46,7 +46,7 @@
       <div class="grid-3">
         <div class="field">
           <label for="service_code">Service code <span class="req" aria-hidden="true">*</span></label>
-          <input id="service_code" formControlName="service_code" list="services" autocomplete="off" [attr.aria-invalid]="err('service_code') ? 'true' : null" />
+          <input id="service_code" formControlName="service_code" placeholder="e.g. MRI-LSPINE-001" autocomplete="off" [attr.aria-invalid]="err('service_code') ? 'true' : null" />
           <datalist id="services"><option value="MRI-LSPINE-001">MRI lumbar spine without contrast</option></datalist>
           @if (err('service_code'); as e) { <div class="field-error">{{ e }}</div> }
         </div>
